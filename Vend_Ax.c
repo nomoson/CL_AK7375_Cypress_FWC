@@ -1011,7 +1011,7 @@ void Simulate_I2C(BYTE device_ID, WORD value, BYTE SelI2C) //Jay Edit
 	Simulate_I2C_Data(0x00,SelI2C);
 	Simulate_I2C_Data((value >> 4)&0xFF,SelI2C);
 	Simulate_I2C_Stop(SelI2C);
-	//
+	// Test commit to Git
 	Simulate_I2C_Start(SelI2C);
 	Simulate_I2C_Data(device_ID,SelI2C);
 	Simulate_I2C_Data(0x01,SelI2C);
