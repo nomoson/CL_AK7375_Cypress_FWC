@@ -83,16 +83,14 @@ void Init_ActuatorVal(void);
 void Init_IAN209Val(void);
 
 void INA209_I2CWrite(BYTE device_ID , BYTE reg_addr, WORD value);
-void INA209_I2CRead(BYTE device_ID , BYTE reg_addr, BYTE xdata *buf);
-
+void INA209_I2CRead(BYTE device_ID , BYTE reg_addr, WORD xdata *buf);
 
 void Simulate_I2C_Start(BYTE SelI2C);
 void Simulate_I2C_Stop(BYTE SelI2C);
 void Simulate_I2C_Data(BYTE value,BYTE SelI2C);
-void Simulate_I2C(BYTE device_ID, WORD value, BYTE SelI2C); //Jay Edit 7/23/2021
-void Init_AK7375(BYTE device_ID, BYTE value, BYTE SelI2C); //Jay Edit 7/23/2021
-void AK7375_I2CRead(BYTE device_ID, BYTE reg_addr, WORD xdata *buf);
-//unsigned char GetBtye(void); // Jay Edit:10/31/2021
+void Init_AK7375(BYTE device_ID, BYTE value); //Jay Edit 7/23/2021
+void AK7375_Simulate_I2C(BYTE device_ID, WORD value); //Jay Edit 7/23/2021
+void AK7375_I2CRead(BYTE device_ID, BYTE reg_addr, BYTE xdata *buf);
 
 void RelayOn(BYTE SelectItem);
 void RelayOff(BYTE SelectItem);
@@ -297,7 +295,7 @@ BOOL DR_VendorCmnd(void)
 					addr = 0x0000;     
 
 				//RelayOff(SelectRelay); // switch to the driver loop
-        Simulate_I2C(ACTVCM_IDAddr,addr,SelectI2C);				
+        AK7375_Simulate_I2C(ACTVCM_IDAddr,addr);				
 				break;
 				
 			case 0xB2: //Initial Actuator to Stand-by Mode
@@ -315,8 +313,7 @@ BOOL DR_VendorCmnd(void)
 				if(addr < 0)
 					addr = 0x00;
 				
-    			//RelayOff(SelectRelay); // switch to the driver loop				
-				 Init_AK7375(ACTVCM_IDAddr, addr, SelectI2C); 
+				Init_AK7375(ACTVCM_IDAddr, addr); 
 				break;
 				
 			case 0xB3: //Initial Actuator to Active Mode
@@ -334,8 +331,7 @@ BOOL DR_VendorCmnd(void)
 				if(addr < 0)
 					addr = 0x00;
 				
-    			//RelayOff(SelectRelay); // switch to the driver loop				
-				 Init_AK7375(ACTVCM_IDAddr, addr, SelectI2C); 
+  			Init_AK7375(ACTVCM_IDAddr, addr); 
 				break;
 				
 			case 0xB4: //Initial Actuator to Sleep Mode
@@ -353,19 +349,17 @@ BOOL DR_VendorCmnd(void)
 				if(addr < 0)
 					addr = 0x00;
 				
-    			//RelayOff(SelectRelay); // switch to the driver loop				
-
-				 Init_AK7375(ACTVCM_IDAddr, addr, SelectI2C); 
+    	  Init_AK7375(ACTVCM_IDAddr, addr); 
 				break;
 				
-			case 0xB5:
+			case 0xB5: // Read-out the regdata
 				ACTVCM_ADRegAddr = SETUPDAT[4];		// Get c++ Reg address
 				len = SETUPDAT[6];
 				len |= SETUPDAT[7] << 8;
 				while(EP0CS & bmEPBUSY);
-			  AK7375_I2CRead(ACTVCM_ADIDAddr,ACTVCM_ADRegAddr,(WORD)EP0BUF);
+			  AK7375_I2CRead(ACTVCM_ADIDAddr,ACTVCM_ADRegAddr,EP0BUF);
 				EP0BCH = 0;
-			  EP0BCL = 2; // byte counter 2 for read
+			  EP0BCL = 1; // byte counter 1 for read
 				break;
 
 				
@@ -392,7 +386,7 @@ BOOL DR_VendorCmnd(void)
 				INA209_I2CRead(IAN209_IDAddr,IAN209_RegAddr,(BYTE)EP0BUF); // call fx2 function call
 
 				EP0BCH = 0;
-			  EP0BCL = 1; // byte counter 1 for read
+			  EP0BCL = 2; // byte counter 1 for read
 				break;
 
 		  case 0xC2:	//Write  IAN209
@@ -770,7 +764,7 @@ void EEPROMWrite(WORD addr, BYTE length, BYTE xdata *buf)
 void EEPROMRead(WORD addr, BYTE length, BYTE xdata *buf)
 {
 	BYTE		i = 0;
-	BYTE		j = 0;
+	//BYTE		j = 0;
 	BYTE xdata 	ee_str[2];
 
 	if(DB_Addr)
@@ -793,7 +787,7 @@ void EEPROMRead(WORD addr, BYTE length, BYTE xdata *buf)
 	EZUSB_Delay(500);
 	IFCONFIG = IFCONFIG & 0xFC; // Set IFCFG0=0 and IFCFG1=0 for "port mode", See TRM Document (Table 13-10)
 
-	//c = 0xBB; //bit0 and bit1 are 1
+	//IOB = 0xBB; //bit0 and bit1 are 1
 	IOB = 0x33; //bit0 and bit1 are 1
 }
 
@@ -815,10 +809,10 @@ void Init_ActuatorVal(void)
 
 void Init_IAN209Val(void)
 {
-	 IAN209_IDAddr = 0x19; //0x80 for IAN209 A0:GND , A1:GND
+	 IAN209_IDAddr = 0x80; //0x80 for IAN209 A0:GND , A1:GND
 }
 
-
+/* //GPIO I2C
  void Simulate_I2C_Start(BYTE SelI2C)
 {
 	int j=0;
@@ -969,73 +963,60 @@ void Simulate_I2C_Data(BYTE value,BYTE SelI2C)
 		break;
 	}	
 }
+*/
 
-void Init_AK7375(BYTE device_ID, BYTE value, BYTE SelI2C) //Jay Edit
+void Init_AK7375(BYTE device_ID, BYTE value) //Jay Edit
 {
-//	EZUSB_Delay(1); //1ms
+/* //GPIO I2C
 	Simulate_I2C_Start(SelI2C);
 	Simulate_I2C_Data(device_ID,SelI2C);
 	Simulate_I2C_Data(0x02,SelI2C); // set to active mode, start to move
 	Simulate_I2C_Data(value&0xFF,SelI2C);
   Simulate_I2C_Stop(SelI2C);	
+*/
+	BYTE		i = 0;
+	BYTE xdata 	ee_str[2];
+
+	ee_str[i++] = 0x02;
+	ee_str[i++] = value&0xFF;
+
+	EZUSB_WriteI2C(device_ID, i, ee_str);
 }
 
-void Simulate_I2C(BYTE device_ID, WORD value, BYTE SelI2C) //Jay Edit 
+void AK7375_Simulate_I2C(BYTE device_ID, WORD value) //Jay Edit 
 {
-/*
-//	EZUSB_Delay(1); //1ms [1]add on position2 address
-	Simulate_I2C_Start(SelI2C);
-	Simulate_I2C_Data(device_ID,SelI2C);
-	Simulate_I2C_Data(0x00,SelI2C); // POSITION1 address
-	Simulate_I2C_Data((value >> 4)&0xFF,SelI2C);
-	Simulate_I2C_Data(0x01,SelI2C); // POSITION2 address
-	Simulate_I2C_Data((value&0x0F)<<4,SelI2C);
-	Simulate_I2C_Stop(SelI2C);
-//
-*/
-/*
-//	EZUSB_Delay(1); //1ms [2]counter incremented
-	Simulate_I2C_Start(SelI2C);
-	Simulate_I2C_Data(device_ID,SelI2C);
-	Simulate_I2C_Data(0x00,SelI2C);
-	Simulate_I2C_Data((value >> 4)&0xFF,SelI2C);
-//	Simulate_I2C_Data(0x01,SelI2C); 
-	Simulate_I2C_Data((value&0x0F)<<4,SelI2C); // address counter automatically incremented
-	Simulate_I2C_Stop(SelI2C);
-//
-*/
-
-//	EZUSB_Delay(1); //1ms [3]write one by one byte
+/* //GPIO I2C
+//[3]write one by one byte
 	Simulate_I2C_Start(SelI2C);
 	Simulate_I2C_Data(device_ID,SelI2C);
 	Simulate_I2C_Data(0x00,SelI2C);
 	Simulate_I2C_Data((value >> 4)&0xFF,SelI2C);
 	Simulate_I2C_Stop(SelI2C);
-	// Test commit to Git
+	//
 	Simulate_I2C_Start(SelI2C);
 	Simulate_I2C_Data(device_ID,SelI2C);
 	Simulate_I2C_Data(0x01,SelI2C);
 	Simulate_I2C_Data((value&0x0F)<<4,SelI2C); 
 	Simulate_I2C_Stop(SelI2C);
 //
-
-/*
-//	EZUSB_Delay(1); //1ms [4]use Cypress I2C& connect to EEPROM I2C PIN
+*/ 
+//[4]use Cypress I2C& connect to EEPROM I2C PIN
 	BYTE		i = 0;
-	BYTE ee_str[3];
-	BYTE reg_addr = 0x00;
+	BYTE xdata 	ee_str[2];
 
-	ee_str[i++] = reg_addr;
-	ee_str[i++] = MSB(value<<4);
-	//ee_str[i++] = (value>>4)&0xFF;
-	ee_str[i++] = LSB(value<<4);
-  //ee_str[i++] = (value&0x0F)<<4;
+  ee_str[i++] = 0x00;
+	ee_str[i++] = (value >> 4)&0xFF;
 	EZUSB_WriteI2C(device_ID, i, ee_str);
 //
-*/
+	i = 0;
+
+  ee_str[i++] = 0x01;
+	ee_str[i++] = (value&0x0F)<<4;
+	EZUSB_WriteI2C(device_ID, i, ee_str);
+//
 }
 
-/*
+/* //GPIO I2C
 BYTE GetByte(void)
 {
 	BYTE i, a;
@@ -1068,15 +1049,16 @@ BYTE GetByte(void)
 }
 */
 
-void AK7375_I2CRead(BYTE device_ID, BYTE reg_addr, WORD xdata *buf)
+void AK7375_I2CRead(BYTE device_ID, BYTE reg_addr, BYTE xdata *buf)
 {
 	BYTE		i = 0;
-	BYTE xdata 	ee_str[2];
+	BYTE xdata 	ee_str[1];
 	ee_str[i++] = reg_addr;
-
-	EZUSB_WriteI2C(device_ID, i, ee_str);
-	EZUSB_ReadI2C(device_ID, 0x02, (WORD)buf);
-/*
+	
+	EZUSB_WriteI2C(0x18, i, ee_str);
+	EZUSB_ReadI2C(device_ID, i, buf);
+	
+/* //GPIO I2C	
 //ADC Data Readout: how to receieve?
 	BYTE		i = 0,j=0;
   BYTE		r1Value_Array;
@@ -1195,14 +1177,14 @@ void INA209_I2CWrite(BYTE device_ID , BYTE reg_addr, WORD value)
 	EZUSB_WriteI2C(device_ID, i, ee_str);
 }
 
-void INA209_I2CRead(BYTE device_ID , BYTE reg_addr, BYTE xdata *buf)
+void INA209_I2CRead(BYTE device_ID , BYTE reg_addr, WORD xdata *buf)
 {
 	BYTE		i = 0;
-	BYTE xdata 	ee_str[1];
+	BYTE xdata 	ee_str[2];
 	ee_str[i++] = reg_addr;
 
-	EZUSB_WriteI2C(0x18, i, ee_str);
-	EZUSB_ReadI2C(device_ID, 0x01, (BYTE)buf);
+	EZUSB_WriteI2C(device_ID, i, ee_str);
+	EZUSB_ReadI2C(device_ID, 0x02, (WORD)buf);
 //EZUSB_ReadI2C(device_ID, reg_addr, buf);
 }
 
